@@ -13,46 +13,40 @@ import java.util.List;
  */
 public class MessageChecker {
 
-    private static List<Message> validMessages = new ArrayList<>();;
-    private static List<Message> finalMessages = new ArrayList<>();;
+    private static List<Message> validMessages = new ArrayList<>();
 
     private static void addValidMessage(Message m) {
         validMessages.add(m);
     }
 
-    private static void addFinalMessage(Message m) {
-        finalMessages.add(m);
-    }
-
     /**
-     * 
+     *
      * @param s
-     * @return null if everything is OK or password to send back in queue if it is not OK
+     * @return the message back with the FinalMessage field filled in order to
+     * send the message back to TaskQueue or to FinalQueue or null if there is
+     * no action needed.
      */
-    public static String processMessage(String s) {
-        String[] messageTokens = s.split(",");
-        Message m = new Message(messageTokens[0], messageTokens[1], messageTokens[2], messageTokens[3], 0);
+    public static Message processMessage(Message m) {
+
         //check if password and decrypted text are the same
         if (validMessages.contains(m)) {
-            Message existingMessage = validMessages.get(validMessages.indexOf(m));
+            Message existingMessage = new Message(validMessages.get(validMessages.indexOf(m)));
             if (existingMessage.getHost().equals(m.getHost())) {
                 //send the password in queue again in order to be validated by other host
-                existingMessage.setTTL(existingMessage.getTTL()+1);
-                if(existingMessage.getTTL() > 5 ){
-                    return null;
+                existingMessage.setTTL(existingMessage.getTTL() + 1);
+                if (existingMessage.getTTL() > 5) {
+                    existingMessage.setFinalMessage(true);
+                } else {
+                    existingMessage.setFinalMessage(false);
                 }
-                return m.getPassword();
             } else {
-                addFinalMessage(m);
                 validMessages.remove(m);
+                existingMessage.setFinalMessage(true);
             }
+            return existingMessage;
         } else {
             addValidMessage(m);
+            return null;
         }
-        return null;
-    }
-
-    public static List<Message> getFinalMessages() {
-        return finalMessages;
     }
 }

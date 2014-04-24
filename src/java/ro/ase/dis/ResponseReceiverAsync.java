@@ -6,13 +6,11 @@ package ro.ase.dis;
 
 import javax.annotation.Resource;
 import javax.ejb.ActivationConfigProperty;
-import javax.ejb.EJB;
 import javax.ejb.MessageDriven;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.DeliveryMode;
 import javax.jms.JMSException;
-import javax.jms.Message;
 import javax.jms.MessageListener;
 import javax.jms.MessageProducer;
 import javax.jms.Queue;
@@ -33,6 +31,8 @@ public class ResponseReceiverAsync implements MessageListener {
     private ConnectionFactory connectionFactory;
     @Resource(mappedName = "jms/taskQueue")
     private Queue taskQueue;
+    @Resource(mappedName = "jms/finalQueue")
+    private Queue finalQueue;
     private Connection connection;
 
     public void connect() {
@@ -51,7 +51,7 @@ public class ResponseReceiverAsync implements MessageListener {
         }
     }
 
-    public void sendMessage(String message) {
+    private void sendTask(String message) {
         TextMessage textMessage;
         try {
             connect();
@@ -69,17 +69,41 @@ public class ResponseReceiverAsync implements MessageListener {
         }
     }
 
+    private void sendFinal(String message) {
+        TextMessage textMessage;
+        try {
+            connect();
+            try (Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                    MessageProducer messageProducer = session.createProducer(finalQueue)) {
+                textMessage = session.createTextMessage();
+                textMessage.setJMSDeliveryMode(DeliveryMode.PERSISTENT);
+
+                textMessage.setText(message);
+                messageProducer.send(textMessage);
+            }
+            disconnect();
+        } catch (JMSException e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
     @Override
-    public void onMessage(Message m) {
+    public void onMessage(javax.jms.Message m) {
         if (m != null) {
             if (m instanceof TextMessage) {
                 TextMessage message = (TextMessage) m;
-                
+
                 try {
                     String stringMessage = message.getText();
-                    String password = MessageChecker.processMessage(stringMessage);
-                    if(password != null){
-                        sendMessage(password);
+                    String[] messageTokens = stringMessage.split(",");
+                    Message response = new Message(messageTokens[0], messageTokens[1], messageTokens[2], messageTokens[3], 0);
+                    Message result = MessageChecker.processMessage(response);
+                    if (result != null) {
+                        if (result.isFinalMessage()) {
+                            sendFinal(response.toString());
+                        } else {
+                            sendTask(response.getPassword());
+                        }
                     }
                 } catch (JMSException ex) {
                     System.err.println(ex.getMessage());

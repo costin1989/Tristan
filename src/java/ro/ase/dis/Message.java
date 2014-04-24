@@ -16,6 +16,7 @@ public class Message {
     private String password;
     private String decryptedText;
     private int TTL;
+    private boolean finalMessage;
 
     public Message(String host, String time, String password, String decryptedText, int TTL) {
         this.host = host;
@@ -23,6 +24,14 @@ public class Message {
         this.password = password;
         this.decryptedText = decryptedText;
         this.TTL = TTL;
+    }
+    
+     public Message(Message existingMessage) {
+        this.host = existingMessage.host;
+        this.time = existingMessage.time;
+        this.password = existingMessage.password;
+        this.decryptedText = existingMessage.decryptedText;
+        this.TTL = existingMessage.TTL;
     }
 
     public String getHost() {
@@ -65,6 +74,14 @@ public class Message {
         this.TTL = TTL;
     }
 
+    public boolean isFinalMessage() {
+        return finalMessage;
+    }
+
+    public void setFinalMessage(boolean finalMessage) {
+        this.finalMessage = finalMessage;
+    }
+
     @Override
     public int hashCode() {
         int hash = 7;
@@ -93,4 +110,10 @@ public class Message {
         return true;
     }
 
+    @Override
+    public String toString() {
+        return "Message{" + "host=" + host + ", time=" + time + ", password=" + password + ", decryptedText=" + decryptedText + ", TTL=" + TTL + '}';
+    }
+
+    
 }
