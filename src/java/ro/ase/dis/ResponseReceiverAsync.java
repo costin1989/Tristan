@@ -100,9 +100,9 @@ public class ResponseReceiverAsync implements MessageListener {
                     Message result = MessageChecker.processMessage(response);
                     if (result != null) {
                         if (result.isFinalMessage()) {
-                            sendFinal(response.toString());
+                            sendFinal(result.toString());
                         } else {
-                            sendTask(response.getPassword());
+                            sendTask(result.getPassword());
                         }
                     }
                 } catch (JMSException ex) {
