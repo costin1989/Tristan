@@ -13,9 +13,13 @@ import javax.jms.DeliveryMode;
 import javax.jms.JMSException;
 import javax.jms.MessageListener;
 import javax.jms.MessageProducer;
+import javax.jms.ObjectMessage;
 import javax.jms.Queue;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+import ro.ase.dis.objects.EncryptionResponseObject;
+import ro.ase.dis.objects.HashResponseObject;
+import ro.ase.dis.objects.PrimeResponseObject;
 
 /**
  *
@@ -90,24 +94,58 @@ public class ResponseReceiverAsync implements MessageListener {
     @Override
     public void onMessage(javax.jms.Message m) {
         if (m != null) {
-            if (m instanceof TextMessage) {
-                TextMessage message = (TextMessage) m;
-
+            if (m instanceof ObjectMessage) {
                 try {
-                    String stringMessage = message.getText();
-                    String[] messageTokens = stringMessage.split(",");
-                    Message response = new Message(messageTokens[0], messageTokens[1], messageTokens[2], messageTokens[3], 0);
-                    Message result = MessageChecker.processMessage(response);
-                    if (result != null) {
-                        if (result.isFinalMessage()) {
-                            sendFinal(result.toString());
-                        } else {
-                            sendTask(result.getPassword());
-                        }
+                    ObjectMessage obj = (ObjectMessage) m;
+                    if (obj.getObject() instanceof PrimeResponseObject) {
+                        PrimeResponseObject encObj = (PrimeResponseObject) obj.getObject();
+                        checkPrimeResponseMessage(encObj);
+                    } else if (obj.getObject() instanceof EncryptionResponseObject) {
+                        EncryptionResponseObject encObj = (EncryptionResponseObject) obj.getObject();
+                        checkEncryptionResponseMessage(encObj);
+                    } else if (obj.getObject() instanceof HashResponseObject) {
+                        HashResponseObject encObj = (HashResponseObject) obj.getObject();
+                        checkHashResponseMessage(encObj);
                     }
                 } catch (JMSException ex) {
-                    System.err.println(ex.getMessage());
+                    System.out.println(ex.getMessage());
                 }
+            }
+        }
+    }
+
+    private void checkEncryptionResponseMessage(EncryptionResponseObject encObj) {
+        Message response = new Message(encObj.getHost(), encObj.getTimestamp().toString(), encObj.getPassword(), encObj.getDecrypted(), 0);
+        Message result = MessageChecker.processMessage(response);
+        if (result != null) {
+            if (result.isFinalMessage()) {
+                sendFinal(result.toString());
+            } else {
+                sendTask(result.getPassword());
+            }
+        }
+    }
+    
+    private void checkPrimeResponseMessage(PrimeResponseObject encObj) {
+        Message response = new Message(encObj.getHost(), encObj.getTimestamp().toString(), encObj.getDivisor(), encObj.getNumber(), 0);
+        Message result = MessageChecker.processMessage(response);
+        if (result != null) {
+            if (result.isFinalMessage()) {
+                sendFinal(result.toString());
+            } else {
+                sendTask(result.getPassword());
+            }
+        }
+    }
+    
+    private void checkHashResponseMessage(HashResponseObject encObj) {
+        Message response = new Message(encObj.getHost(), encObj.getTimestamp().toString(), encObj.getPlainText(), encObj.getHashText(), 0);
+        Message result = MessageChecker.processMessage(response);
+        if (result != null) {
+            if (result.isFinalMessage()) {
+                sendFinal(result.toString());
+            } else {
+                sendTask(result.getPassword());
             }
         }
     }
